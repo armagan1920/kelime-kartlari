@@ -39,6 +39,22 @@
     return 'kart-metin';
   }
 
+  // Kart yazısında "▸" ile başlayan satırlar not satırıdır (türevler, kelimenin anlamı): küçük ve soluk gösterilir.
+  // anaMetin: not satırları çıkarılmış yazı (yazı boyutu ve sesli okuma bunu kullanır).
+  function anaMetin(metin) {
+    return String(metin || '').split('\n').filter((s) => !s.trim().startsWith('▸')).join('\n').trim();
+  }
+  function metinYaz(kutu, metin) {
+    const notlar = String(metin || '').split('\n').filter((s) => s.trim().startsWith('▸'));
+    kutu.textContent = anaMetin(metin);
+    if (notlar.length) {
+      const not = document.createElement('span');
+      not.className = 'kart-not';
+      not.textContent = notlar.join('\n');
+      kutu.append(not);
+    }
+  }
+
   function yeniId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   }
@@ -64,10 +80,10 @@
     ana.className = 'satir-ana';
     const terim = document.createElement('span');
     terim.className = 'terim';
-    terim.textContent = kart.on;
+    metinYaz(terim, kart.on);
     const anlam = document.createElement('span');
     anlam.className = 'anlam';
-    anlam.textContent = kart.arka;
+    metinYaz(anlam, kart.arka);
     ana.append(terim, anlam);
     if (kaynakAdi) {
       const kaynak = document.createElement('span');
@@ -334,10 +350,10 @@
     kartKutu.classList.add('anisiz');
     kartKutu.classList.remove('cevrik');
     durum.cevrik = false;
-    $('#kart-on').textContent = onYazi;
-    $('#kart-on').className = boyutSinifi(onYazi);
-    $('#kart-arka').textContent = arkaYazi;
-    $('#kart-arka').className = boyutSinifi(arkaYazi);
+    metinYaz($('#kart-on'), onYazi);
+    $('#kart-on').className = boyutSinifi(anaMetin(onYazi));
+    metinYaz($('#kart-arka'), arkaYazi);
+    $('#kart-arka').className = boyutSinifi(anaMetin(arkaYazi));
     void kartKutu.offsetWidth; // tarayıcıyı değişikliği uygulamaya zorla
     kartKutu.classList.remove('anisiz');
 
@@ -412,7 +428,7 @@
     const kart = simdikiKart();
     if (!kart || !('speechSynthesis' in window)) return;
     speechSynthesis.cancel();
-    const konusma = new SpeechSynthesisUtterance(kart.on);
+    const konusma = new SpeechSynthesisUtterance(anaMetin(kart.on));   // türev satırı okunmaz
     konusma.lang = 'en-US';
     konusma.rate = 0.9;
     speechSynthesis.speak(konusma);

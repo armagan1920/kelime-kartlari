@@ -2,7 +2,7 @@
 // Yöntem: önce hafızadaki kopyayı göster, arkada internetten yenisini indirip hafızayı güncelle.
 // Böylece telefon çevrimdışıyken de açılır, güncellemeler de bir sonraki açılışta gelir.
 // Not: Kelimeler burada değil, tarayıcının localStorage hafızasında durur (app.js).
-const SURUM = 'kelime-kartlari-v6';
+const SURUM = 'kelime-kartlari-v8';
 const DOSYALAR = [
   './',
   './index.html',
@@ -17,7 +17,13 @@ const DOSYALAR = [
 ];
 
 self.addEventListener('install', (olay) => {
-  olay.waitUntil(caches.open(SURUM).then((c) => c.addAll(DOSYALAR)).then(() => self.skipWaiting()));
+  // cache: 'reload' -> tarayıcının HTTP önbelleğini atla, dosyaların en yeni halini sunucudan al
+  // (GitHub Pages dosyaları 10 dk önbellekte tuttuğu için yoksa yeni sürüm eski dosyalarla kurulabiliyordu).
+  olay.waitUntil(
+    caches.open(SURUM)
+      .then((c) => c.addAll(DOSYALAR.map((u) => new Request(u, { cache: 'reload' }))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', (olay) => {
@@ -42,7 +48,10 @@ self.addEventListener('fetch', (olay) => {
   olay.respondWith(
     caches.open(SURUM).then((c) =>
       c.match(olay.request, { ignoreSearch: true }).then((kayitli) => {
-        const internetten = fetch(olay.request)
+        // cache: 'no-cache' -> arka planda yenilerken sunucuya "değişti mi?" diye mutlaka sor.
+        // (Sayfa isteği (navigate) ayar kabul etmediği için adresiyle istenir.)
+        const istek = olay.request.mode === 'navigate' ? adres.href : olay.request;
+        const internetten = fetch(istek, { cache: 'no-cache' })
           .then((yanit) => {
             if (yanit && yanit.ok) c.put(olay.request, yanit.clone());
             return yanit;

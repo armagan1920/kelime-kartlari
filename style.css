@@ -171,6 +171,14 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* ---------- V2: düzenleme ---------- */
 .ust .sag { margin-left: auto; }
 
+/* "▸" ile başlayan not satırları (türevler, kelimenin anlamı): kartta ve listede küçük ve soluk */
+.kart-not {
+  display: block; margin-top: 0.9rem;
+  font-size: 0.92rem; font-weight: 400; line-height: 1.5;
+  color: var(--soluk); white-space: pre-line;
+}
+.kelime-satir .kart-not { margin-top: 3px; font-size: 0.78rem; }
+
 /* Eşitleme (bulut) düğmesi: data-durum'a göre renk */
 .bulut { position: relative; color: var(--soluk); }
 .bulut .bulut-tik { opacity: 0; }
