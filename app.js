@@ -724,14 +724,23 @@
       dosya.name + ': ' + yeniSetler.length + ' set, ' + kelime + ' kelime.' +
       (SETLER.length ? ' Şu an ' + SETLER.length + ' set var.' : ''), secenekler);
     if (!cevap) return;
+    if (setleriEkle(yeniSetler, cevap === 'degistir')) bildir(yeniSetler.length + ' set, ' + kelime + ' kelime yüklendi.');
+    location.hash = '';
+    anaSayfayiGoster();
+  }
+
+  // Yeni setleri ([{ ad, kartlar: [{ on, arka }] }]) kayıt olarak ekler (listenin sonuna).
+  // degistir = true ise önce var olan bütün setler ve kartlar silindi olarak işaretlenir.
+  // Yedekten yükleme ve paylaşım bunu kullanır.
+  function setleriEkle(yeniSetler, degistir) {
     const liste = [];
-    if (cevap === 'degistir') {               // var olanların hepsi silindi olarak işaretlenir
+    if (degistir) {
       SETLER.forEach((s) => {
         liste.push(['setler', s.id, { silindi: true }]);
         s.kartlar.forEach((k) => liste.push(['kartlar', k.id, { silindi: true }]));
       });
     }
-    const enSonSira = cevap === 'ekle' && SETLER.length ? Math.max(...SETLER.map((s) => s.sira)) + 1 : 0;
+    const enSonSira = !degistir && SETLER.length ? Math.max(...SETLER.map((s) => s.sira)) + 1 : 0;
     yeniSetler.forEach((s, i) => {
       const sid = yeniId();
       liste.push(['setler', sid, { ad: s.ad, sira: enSonSira + i, silindi: false }]);
@@ -739,9 +748,175 @@
         liste.push(['kartlar', sid + '-' + j, { set: sid, on: k.on, arka: k.arka, sira: j, silindi: false }]);
       });
     });
-    if (kayitlariYaz(liste)) bildir(yeniSetler.length + ' set, ' + kelime + ' kelime yüklendi.');
-    location.hash = '';
-    anaSayfayiGoster();
+    return kayitlariYaz(liste);
+  }
+
+  // ---------- Paylaşım (setlerin bir kopyasını bağlantıyla paylaşma) ----------
+  // Paylaşılan setlerin kopyası bulutta 'paylasimlar/{id}' belgesine konur (esitleme.js).
+  // Bağlantı: [adres]#paylasim/{id}. Açan kişi setleri görür ve "Kartlarıma ekle" ile kendi kartlarına kopyalar.
+  const ALINANLAR = 'alinanPaylasimlar';   // bu cihazda daha önce eklenen paylaşımlar (tekrar uyarısı için)
+
+  function paylasimAdresi(id) {
+    return location.origin + location.pathname + '#paylasim/' + id;
+  }
+  function kisaTarih(ms) {
+    return ms ? new Date(ms).toLocaleDateString('tr-TR') : '';
+  }
+
+  // Paylaşım için bulut motoru gerekli: yoksa açıklama gösterir ve false döner.
+  async function motorHazirMi(baslik) {
+    for (let i = 0; i < 40 && !esitleme.motor && ['baslamadi', 'baglaniyor'].includes(esitleme.durum); i++) {
+      await new Promise((z) => setTimeout(z, 250));      // motor yükleniyorsa biraz bekle
+    }
+    if (esitleme.motor && esitleme.motor.paylasimOlustur) return true;
+    await sor(baslik, esitleme.durum === 'kurulmadi' || esitleme.durum === 'dosya'
+      ? 'Paylaşım yalnızca internetteki adreste çalışır.'
+      : 'Buluta bağlanılamadı. İnternet bağlantınızı kontrol edip yeniden deneyin.', []);
+    return false;
+  }
+
+  async function girisGerekli(baslik, metin) {
+    if (esitleme.motor.bilgi().girisli) return true;
+    const c = await sor(baslik, metin, [{ yazi: 'Google ile giriş yap', deger: 'giris', vurgulu: true }]);
+    if (c !== 'giris') return false;
+    try { await esitleme.motor.girisYap(); } catch (e) { bildir('Giriş yapılamadı: ' + (e.code || e.message)); return false; }
+    return esitleme.motor.bilgi().girisli;
+  }
+
+  // Paylaşılacak setleri seçme penceresi. onSecili: başta işaretli olacak set kimlikleri.
+  // Seçilen setleri döndürür (vazgeçilirse null).
+  function setSecimPenceresi(onSecili) {
+    return new Promise((coz) => {
+      const p = $('#secim-pencere');
+      const liste = $('#secim-listesi');
+      liste.innerHTML = '';
+      SETLER.forEach((s) => {
+        const satir = document.createElement('label');
+        satir.className = 'secim-satir';
+        const kutu = document.createElement('input');
+        kutu.type = 'checkbox';
+        kutu.value = s.id;
+        kutu.checked = (onSecili || []).includes(s.id);
+        const ad = document.createElement('span');
+        ad.className = 'secim-ad';
+        ad.textContent = s.ad;
+        const adet = document.createElement('span');
+        adet.className = 'soluk kucuk';
+        adet.textContent = s.kartlar.length + ' kelime';
+        satir.append(kutu, ad, adet);
+        liste.append(satir);
+      });
+      const guncelle = () => {
+        const n = liste.querySelectorAll('input:checked').length;
+        $('#secim-sayac').textContent = n + ' set seçili';
+        $('#secim-tamam').disabled = n === 0;
+        $('#secim-tumu').textContent = n === SETLER.length ? 'Seçimi kaldır' : 'Tümünü seç';
+      };
+      liste.onchange = guncelle;
+      $('#secim-tumu').onclick = () => {
+        const hepsi = liste.querySelectorAll('input:checked').length !== SETLER.length;
+        liste.querySelectorAll('input').forEach((i) => { i.checked = hepsi; });
+        guncelle();
+      };
+      $('#secim-tamam').onclick = () => {
+        const idler = [...liste.querySelectorAll('input:checked')].map((i) => i.value);
+        p.close();
+        coz(SETLER.filter((s) => idler.includes(s.id)));
+      };
+      $('#secim-iptal').onclick = () => coz(null);
+      p.oncancel = () => coz(null);
+      guncelle();
+      p.showModal();
+    });
+  }
+
+  async function baglantiGoster(id, ozet) {
+    const adres = paylasimAdresi(id);
+    const secenekler = [];
+    if (navigator.share) secenekler.push({ yazi: 'Bağlantıyı gönder', deger: 'gonder', vurgulu: true });
+    secenekler.push({ yazi: 'Bağlantıyı kopyala', deger: 'kopyala', vurgulu: !navigator.share });
+    const c = await sor('Paylaşım bağlantısı', ozet + '\n\n' + adres, secenekler);
+    if (c === 'gonder') {
+      try { await navigator.share({ title: 'Kelime Kartları', text: ozet, url: adres }); } catch (e) { /* vazgeçildi */ }
+    } else if (c === 'kopyala') {
+      try { await navigator.clipboard.writeText(adres); bildir('Bağlantı kopyalandı.'); }
+      catch (e) { bildir('Kopyalanamadı. Bağlantıyı elle seçip kopyalayın.'); }
+    }
+  }
+
+  async function setleriPaylas(onSecili) {
+    if (!(await motorHazirMi('Setleri paylaş'))) return;
+    if (!(await girisGerekli('Setleri paylaş', 'Paylaşım bağlantısı oluşturmak için Google ile giriş yapın.'))) return;
+    const secilen = await setSecimPenceresi(onSecili);
+    if (!secilen || !secilen.length) return;
+    const kelime = secilen.reduce((t, s) => t + s.kartlar.length, 0);
+    bildir('Paylaşım hazırlanıyor...');
+    try {
+      const id = await esitleme.motor.paylasimOlustur(
+        secilen.map((s) => ({ ad: s.ad, kartlar: s.kartlar.map((k) => ({ on: k.on, arka: k.arka })) })));
+      await baglantiGoster(id, secilen.length + ' set, ' + kelime + ' kelime');
+    } catch (e) {
+      bildir('Paylaşılamadı: ' + (e.code || e.message));
+    }
+  }
+
+  async function paylasimlarim() {
+    if (!(await motorHazirMi('Paylaşımlarım'))) return;
+    if (!(await girisGerekli('Paylaşımlarım', 'Paylaşımlarınızı görmek için Google ile giriş yapın.'))) return;
+    let liste;
+    try { liste = await esitleme.motor.paylasimlarim(); }
+    catch (e) { bildir('Paylaşımlar alınamadı: ' + (e.code || e.message)); return; }
+    if (!liste.length) { await sor('Paylaşımlarım', 'Henüz bir paylaşımınız yok.', []); return; }
+    liste.sort((a, b) => (b.tarih || 0) - (a.tarih || 0));
+    const baslik = (p) => p.setAdlari[0] + (p.setAdlari.length > 1 ? ' + ' + (p.setAdlari.length - 1) + ' set' : '') +
+      ' · ' + p.kartSayisi + ' kelime' + (p.tarih ? ' · ' + kisaTarih(p.tarih) : '');
+    const secim = await sor('Paylaşımlarım', 'Bir paylaşım seçin:', liste.map((p) => ({ yazi: baslik(p), deger: p.id })));
+    if (!secim) return;
+    const p = liste.find((x) => x.id === secim);
+    const c = await sor(baslik(p), p.setAdlari.join('\n'), [
+      { yazi: 'Bağlantıyı gönder / kopyala', deger: 'baglanti', vurgulu: true },
+      { yazi: 'Paylaşımı kaldır', deger: 'sil', tehlike: true }
+    ]);
+    if (c === 'baglanti') {
+      baglantiGoster(p.id, p.setAdlari.length + ' set, ' + p.kartSayisi + ' kelime');
+    } else if (c === 'sil') {
+      const k = await sor('Paylaşım kaldırılsın mı?',
+        'Bağlantı artık çalışmaz. Daha önce ekleyenlerin setleri onlarda kalır.',
+        [{ yazi: 'Kaldır', deger: 'evet', tehlike: true }]);
+      if (k !== 'evet') return;
+      try { await esitleme.motor.paylasimSil(p.id); bildir('Paylaşım kaldırıldı.'); }
+      catch (e) { bildir('Kaldırılamadı: ' + (e.code || e.message)); }
+    }
+  }
+
+  // Paylaşım bağlantısıyla açılınca: setleri göster, istenirse kendi kartlarına ekle.
+  async function paylasimAc(id) {
+    if (!(await motorHazirMi('Paylaşılan setler'))) return;
+    let p;
+    try { p = await esitleme.motor.paylasimGetir(id); }
+    catch (e) { await sor('Paylaşılan setler', 'Paylaşım alınamadı. İnternet bağlantınızı kontrol edin.', []); return; }
+    if (!p || !Array.isArray(p.setler)) {
+      await sor('Paylaşım bulunamadı', 'Bağlantı yanlış ya da paylaşım sahibi tarafından kaldırılmış.', []);
+      return;
+    }
+    const setler = p.setler.map((s) => ({
+      ad: String(s && s.ad || 'Adsız set'),
+      kartlar: (s && Array.isArray(s.kartlar) ? s.kartlar : [])
+        .filter((k) => k && (k.on || k.arka))
+        .map((k) => ({ on: String(k.on || '(kelime yok)'), arka: String(k.arka || '(çeviri yok)') }))
+    }));
+    const kelime = setler.reduce((t, s) => t + s.kartlar.length, 0);
+    const alinan = hafizadanOku(ALINANLAR, []);
+    const metin = (p.sahipAd ? p.sahipAd + ' sizinle ' : 'Sizinle ') + setler.length + ' set paylaştı (' + kelime + ' kelime):\n' +
+      setler.map((s) => '• ' + s.ad + ' (' + s.kartlar.length + ')').join('\n') +
+      (alinan.includes(id) ? '\n\nBu paylaşımı bu cihazda daha önce eklediniz.' : '');
+    const c = await sor('Paylaşılan setler', metin, [{ yazi: 'Kartlarıma ekle', deger: 'ekle', vurgulu: true }]);
+    if (c !== 'ekle') return;
+    if (setleriEkle(setler, false)) {
+      if (!alinan.includes(id)) hafizayaYaz(ALINANLAR, alinan.concat([id]));
+      bildir(setler.length + ' set, ' + kelime + ' kelime kartlarınıza eklendi.');
+      anaSayfayiGoster();
+    }
   }
 
   // ---------- Eşitleme (bulut) ----------
@@ -749,13 +924,15 @@
   // Firebase ayarı (firebase-ayar.js) da varsa yüklenir. O dosya bu uygulamayla aşağıdaki
   // window.KK fonksiyonları üzerinden konuşur.
   const IMLEC = 'esitlemeImlec';   // { uid, setler: ms, kartlar: ms }  -> buluttan en son nereye kadar okundu
-  const esitleme = { durum: 'kapali', eposta: null, hata: null, motor: null };
+  // durum 'baslamadi': esitlemeyiYukle henüz çalışmadı (sayfa açılışı; paylaşım bağlantısı bunu bekler).
+  const esitleme = { durum: 'baslamadi', eposta: null, hata: null, motor: null };
 
   function esitlemeyiDurt() {
     if (esitleme.motor && esitleme.motor.durt) esitleme.motor.durt();
   }
 
   const DURUM_YAZISI = {
+    baslamadi: 'Buluta bağlanılıyor...',
     kurulmadi: 'Eşitleme henüz kurulmadı',
     dosya: 'Eşitleme sadece internetteki adreste çalışır',
     kapali: 'Eşitleme kapalı (giriş yapılmadı)',
@@ -904,11 +1081,14 @@
       secenekler = [
         { yazi: '+ Kelime ekle', deger: 'ekle' },
         { yazi: 'Set adını değiştir', deger: 'adlandir' },
+        { yazi: 'Bu seti paylaş', deger: 'setipaylas' },
         { yazi: 'Seti sil', deger: 'sil', tehlike: true }
       ];
     } else {
       secenekler = [
         { yazi: '+ Yeni set', deger: 'yeni' },
+        { yazi: 'Setleri paylaş', deger: 'paylas' },
+        { yazi: 'Paylaşımlarım', deger: 'paylasimlar' },
         { yazi: 'Eşitleme (Google hesabı)', deger: 'esitleme' },
         { yazi: 'Yedeği indir (dosya)', deger: 'indir' },
         { yazi: 'Yedekten yükle', deger: 'yukle' }
@@ -919,6 +1099,9 @@
     else if (secim === 'adlandir') setiYenidenAdlandir();
     else if (secim === 'sil') setiSil();
     else if (secim === 'yeni') yeniSet();
+    else if (secim === 'setipaylas') setleriPaylas([durum.set.id]);
+    else if (secim === 'paylas') setleriPaylas([]);
+    else if (secim === 'paylasimlar') paylasimlarim();
     else if (secim === 'esitleme') esitlemePenceresi();
     else if (secim === 'indir') yedegiIndir();
     else if (secim === 'yukle') $('#yedek-dosya').click();
@@ -926,6 +1109,14 @@
 
   // ---------- Sayfa yönlendirme (#set/abc123 gibi adresler) ----------
   function adresiIsle() {
+    const paylasim = location.hash.match(/^#paylasim\/([\w-]+)$/);
+    if (paylasim) {
+      // Adresten paylaşım kısmını sil (geri tuşu ya da yenileme pencereyi tekrar açmasın), ana sayfayı göster.
+      history.replaceState(null, '', location.pathname + location.search);
+      anaSayfayiGoster();
+      paylasimAc(paylasim[1]);
+      return;
+    }
     const eslesme = location.hash.match(/^#set\/([\w-]+)$/);
     if (eslesme) setiAc(eslesme[1]);
     else anaSayfayiGoster();

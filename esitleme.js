@@ -47,7 +47,45 @@ export async function baslat(ayar, kkFonksiyonlari) {
 }
 
 export function bilgi() {
-  return { girisli: !!kullanici, eposta: kullanici ? kullanici.email : null };
+  // auth.currentUser: giriş biter bitmez doludur (onAuthStateChanged bildirimi biraz sonra gelebilir).
+  const k = (auth && auth.currentUser) || kullanici;
+  return { girisli: !!k, eposta: k ? k.email : null };
+}
+
+// ---------- Paylaşım: paylasimlar/{id} = { sahip, sahipAd, olusturma, setler: [{ad, kartlar:[{on, arka}]}], kartSayisi } ----------
+// Kurallar (firestore.rules): bağlantıyı bilen okur (get); sadece sahibi oluşturur, listeler ve siler.
+export async function paylasimOlustur(setler) {
+  const k = auth.currentUser;
+  if (!k) throw Object.assign(new Error('Giriş yapılmadı'), { code: 'giris-yok' });
+  const ad = ((k.displayName || '').trim().split(/\s+/)[0]) || null;   // alıcıya sadece ilk ad görünür
+  const ref = await fb.addDoc(fb.collection(db, 'paylasimlar'), {
+    sahip: k.uid,
+    sahipAd: ad,
+    olusturma: fb.serverTimestamp(),
+    setler,
+    kartSayisi: setler.reduce((t, s) => t + s.kartlar.length, 0)
+  });
+  return ref.id;
+}
+
+export async function paylasimGetir(id) {
+  const belge = await fb.getDoc(fb.doc(db, 'paylasimlar', id));
+  return belge.exists() ? belge.data() : null;
+}
+
+export async function paylasimlarim() {
+  const k = auth.currentUser;
+  if (!k) return [];
+  const sonuc = await fb.getDocs(fb.query(fb.collection(db, 'paylasimlar'), fb.where('sahip', '==', k.uid)));
+  return sonuc.docs.map((d) => {
+    const v = d.data();
+    return { id: d.id, setAdlari: (v.setler || []).map((s) => s.ad), kartSayisi: v.kartSayisi || 0,
+             tarih: v.olusturma && v.olusturma.toMillis ? v.olusturma.toMillis() : null };
+  });
+}
+
+export async function paylasimSil(id) {
+  await fb.deleteDoc(fb.doc(db, 'paylasimlar', id));
 }
 
 export async function girisYap() {

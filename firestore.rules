@@ -19,5 +19,18 @@ service cloud.firestore {
                   && (resource == null || request.resource.data.g >= resource.data.g);
       allow delete: if false;
     }
+    // Paylaşım: setlerin bir kopyası. Bağlantıyı (rastgele kimliği) bilen herkes okuyabilir (giriş şart değil).
+    // Kimse başkalarının paylaşımlarını listeleyemez; sadece sahibi oluşturur, listeler ve siler. Değiştirilemez.
+    match /paylasimlar/{id} {
+      allow get: if true;
+      allow list: if request.auth != null && resource.data.sahip == request.auth.uid;
+      allow create: if request.auth != null
+                  && request.resource.data.sahip == request.auth.uid
+                  && request.resource.data.setler is list
+                  && request.resource.data.setler.size() > 0
+                  && request.resource.data.setler.size() <= 100;
+      allow delete: if request.auth != null && resource.data.sahip == request.auth.uid;
+      allow update: if false;
+    }
   }
 }

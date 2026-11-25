@@ -134,6 +134,24 @@
     </form>
   </dialog>
 
+  <!-- PENCERE: paylaşılacak setleri seçme -->
+  <dialog id="secim-pencere" class="pencere">
+    <form method="dialog">
+      <h3>Setleri paylaş</h3>
+      <p class="soluk kucuk">Seçtiğiniz setlerin bir kopyası paylaşılır. Bağlantıyı açan herkes bu setleri kendi kartlarına ekleyebilir; sonraki değişiklikleriniz onlara geçmez.</p>
+      <div class="secim-ust">
+        <button id="secim-tumu" class="secenek" type="button">Tümünü seç</button>
+        <span id="secim-sayac" class="soluk kucuk"></span>
+      </div>
+      <div id="secim-listesi" class="secim-listesi"></div>
+      <div class="pencere-dugmeler">
+        <span class="bosluk"></span>
+        <button id="secim-iptal" value="iptal" class="secenek" type="submit" formnovalidate>İptal</button>
+        <button id="secim-tamam" class="secenek vurgulu" type="button">Bağlantı oluştur</button>
+      </div>
+    </form>
+  </dialog>
+
   <input id="yedek-dosya" type="file" accept=".json,application/json" hidden>
   <div id="bildirim" class="bildirim" role="status" hidden></div>
 
