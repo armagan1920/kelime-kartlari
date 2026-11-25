@@ -1,0 +1,23 @@
+rules_version = '2';
+// Kelime Kartları - Firestore güvenlik kuralları.
+// Firebase konsolu > Firestore Database > Rules sekmesine bu metin yapıştırılır.
+// 1) Herkes sadece kendi kelimelerini okuyup yazabilir (kullanicilar/{kendi uid'i}/...).
+// 2) Sadece 'setler' ve 'kartlar' koleksiyonları kullanılabilir.
+// 3) Bir kaydın buluttakinden ESKİ hali (g değeri küçük) yazılamaz. Böylece iki cihaz neredeyse aynı anda
+//    aynı kartı değiştirse bile en son yapılan değişiklik kaybolmaz.
+// 4) Kayıt silinmez (silinen kartlar "silindi" işaretiyle tutulur).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /kullanicilar/{uid}/{tur}/{id} {
+      allow read: if request.auth != null && request.auth.uid == uid
+                  && (tur == 'setler' || tur == 'kartlar');
+      allow create, update: if request.auth != null && request.auth.uid == uid
+                  && (tur == 'setler' || tur == 'kartlar')
+                  && request.resource.data.g is number
+                  && request.resource.data.silindi is bool
+                  && request.resource.data.size() <= 12
+                  && (resource == null || request.resource.data.g >= resource.data.g);
+      allow delete: if false;
+    }
+  }
+}

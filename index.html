@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#b94e27">
+  <title>Kelime Kartları</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="simgeler/simge-192.png">
+  <link rel="apple-touch-icon" href="simgeler/apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="ust">
+    <button id="geri" class="ikon-dugme" type="button" aria-label="Setlere dön" hidden>
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1 id="baslik">Kelime Kartları</h1>
+    <!-- Eşitleme durumu: renk ve işaret data-durum'a göre değişir (style.css) -->
+    <button id="bulut" class="ikon-dugme sag bulut" type="button" aria-label="Eşitleme" data-durum="kapali">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M7 18.5h10.5a4 4 0 00.6-7.95A5.5 5.5 0 007.4 9.2 4.7 4.7 0 007 18.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path class="bulut-tik" d="M9.3 13.6l2 2 3.6-3.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="bulut-nokta" aria-hidden="true"></span>
+    </button>
+    <button id="menu" class="ikon-dugme" type="button" aria-label="Menü">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="5" cy="12" r="1.9" fill="currentColor"/><circle cx="12" cy="12" r="1.9" fill="currentColor"/><circle cx="19" cy="12" r="1.9" fill="currentColor"/></svg>
+    </button>
+  </header>
+
+  <!-- ANA SAYFA: setler ve arama -->
+  <main id="ana" class="sayfa">
+    <div class="arama-kutu">
+      <input id="arama" type="search" placeholder="Bütün setlerde kelime ara" autocomplete="off">
+    </div>
+    <div class="ozet-satir">
+      <p id="ozet" class="soluk"></p>
+      <button id="yeni-set" class="secenek vurgulu" type="button">+ Yeni set</button>
+    </div>
+    <div id="set-listesi" class="set-listesi"></div>
+    <div id="arama-sonuc" class="kelime-listesi" hidden></div>
+  </main>
+
+  <!-- SET SAYFASI: kartlar -->
+  <main id="set" class="sayfa" hidden>
+    <div class="ilerleme"><div id="ilerleme-dolu"></div></div>
+    <p id="sayac" class="sayac"></p>
+
+    <div id="kart" class="kart" tabindex="0" role="button" aria-label="Kartı çevir">
+      <div class="kart-ic">
+        <div class="kart-yuz kart-on"><span class="kart-etiket">Ön</span><p class="kart-metin" id="kart-on"></p></div>
+        <div class="kart-yuz kart-arka"><span class="kart-etiket">Arka</span><p class="kart-metin" id="kart-arka"></p></div>
+      </div>
+    </div>
+    <p class="ipucu soluk">Çevirmek için karta dokun · Kaydırarak ya da ← → ile gez</p>
+
+    <div class="kontroller">
+      <button id="karistir" class="secenek" type="button" aria-pressed="false" title="Karıştır">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 7h3c4 0 6 10 10 10h3M4 17h3c1.6 0 2.8-1.6 3.9-3.6M14.1 9.6C15.2 8 16.4 7 17 7h3M18 4l3 3-3 3M18 14l3 3-3 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Karıştır</span>
+      </button>
+      <button id="onceki" class="yon" type="button" aria-label="Önceki kart">
+        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button id="sonraki" class="yon" type="button" aria-label="Sonraki kart">
+        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button id="seslendir" class="secenek" type="button" title="İngilizcesini sesli oku">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10H4zM16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Dinle</span>
+      </button>
+    </div>
+    <div class="kontroller ikinci">
+      <button id="ters" class="secenek" type="button" aria-pressed="false">
+        <span id="ters-yazi">Önce: ön yüz</span>
+      </button>
+    </div>
+
+    <div class="liste-baslik-satir">
+      <h2 class="liste-baslik">Bu setteki kelimeler <span id="set-adet" class="soluk"></span></h2>
+      <button id="kelime-ekle" class="secenek vurgulu" type="button">+ Kelime ekle</button>
+    </div>
+    <div id="set-kelimeleri" class="kelime-listesi"></div>
+  </main>
+
+  <!-- PENCERE: kelime ekle / düzenle -->
+  <dialog id="kelime-pencere" class="pencere">
+    <form method="dialog" id="kelime-form">
+      <h3 id="kp-baslik">Kelime ekle</h3>
+      <label class="alan">
+        <span>İngilizce (ön yüz)</span>
+        <input id="k-on" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" lang="en">
+      </label>
+      <label class="alan">
+        <span>Türkçe (arka yüz)</span>
+        <textarea id="k-arka" rows="2" lang="tr"></textarea>
+      </label>
+      <div class="oneri-satir">
+        <button id="oner" class="secenek" type="button">Türkçesini öner</button>
+        <span id="oneri-durum" class="soluk kucuk"></span>
+      </div>
+      <div id="oneriler" class="oneriler"></div>
+      <p class="soluk kucuk">Öneri için yazdığınız kelime MyMemory çeviri servisine gönderilir. İnternet gerekir.</p>
+      <div class="pencere-dugmeler">
+        <button id="kp-sil" class="secenek tehlike" type="button" hidden>Sil</button>
+        <span class="bosluk"></span>
+        <button value="iptal" class="secenek" type="submit" formnovalidate>İptal</button>
+        <button id="kp-yeni" class="secenek" type="button">Kaydet + yeni</button>
+        <button id="kp-kaydet" class="secenek vurgulu" type="button">Kaydet</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- PENCERE: set adı -->
+  <dialog id="ad-pencere" class="pencere">
+    <form method="dialog" id="ad-form">
+      <h3 id="ap-baslik">Yeni set</h3>
+      <label class="alan">
+        <span>Set adı</span>
+        <input id="set-adi" type="text" autocomplete="off" maxlength="80">
+      </label>
+      <div class="pencere-dugmeler">
+        <span class="bosluk"></span>
+        <button value="iptal" class="secenek" type="submit" formnovalidate>İptal</button>
+        <button id="ap-tamam" class="secenek vurgulu" type="button">Kaydet</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- PENCERE: soru (onay / seçim) ve menü -->
+  <dialog id="soru-pencere" class="pencere">
+    <form method="dialog">
+      <h3 id="sp-baslik"></h3>
+      <p id="sp-metin" class="soluk"></p>
+      <div id="sp-dugmeler" class="pencere-dugmeler dikey"></div>
+    </form>
+  </dialog>
+
+  <input id="yedek-dosya" type="file" accept=".json,application/json" hidden>
+  <div id="bildirim" class="bildirim" role="status" hidden></div>
+
+  <!-- Bilgisayardaki ilk veri (varsa). İnternetteki sürümde bu dosya yoktur; kelimeler telefonda saklanır. -->
+  <script src="kelimeler.js"></script>
+  <!-- Firebase proje ayarı (eşitleme). Gizli değildir; erişimi Firebase'deki güvenlik kuralları korur. -->
+  <script src="firebase-ayar.js"></script>
+  <script src="app.js"></script>
+  <script>
+    // Telefona kurulabilmesi ve internetsiz çalışması için service worker'ı kaydet.
+    // Dosyadan (file://) açılınca çalışmaz, bu normaldir; uygulama yine çalışır.
+    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    }
+  </script>
+</body>
+</html>
