@@ -2,7 +2,7 @@
 // Yöntem: önce hafızadaki kopyayı göster, arkada internetten yenisini indirip hafızayı güncelle.
 // Böylece telefon çevrimdışıyken de açılır, güncellemeler de bir sonraki açılışta gelir.
 // Not: Kelimeler burada değil, tarayıcının localStorage hafızasında durur (app.js).
-const SURUM = 'kelime-kartlari-v5';
+const SURUM = 'kelime-kartlari-v6';
 const DOSYALAR = [
   './',
   './index.html',
